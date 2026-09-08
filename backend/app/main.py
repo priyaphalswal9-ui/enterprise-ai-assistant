@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from backend.app.api.v1.auth import router as auth_router
+from backend.app.api.v1.messages import router as messages_router
 from backend.app.api.v1.conversations import router as conversations_router
 
 app = FastAPI()
@@ -13,6 +14,11 @@ app.include_router(
 
 app.include_router(
     conversations_router,
+    prefix="/api/v1",
+)
+
+app.include_router(
+    messages_router,
     prefix="/api/v1",
 )
 
