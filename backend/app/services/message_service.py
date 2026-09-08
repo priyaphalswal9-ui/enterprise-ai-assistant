@@ -7,12 +7,13 @@ from backend.app.schemas.message import MessageCreate
 def create_message(
     db: Session,
     conversation_id: int,
-    data: MessageCreate,
+    content: str,
+    role: str,
 ) -> Message:
     message = Message(
         conversation_id=conversation_id,
-        role="user",
-        content=data.content,
+        content=content,
+        role=role,
     )
 
     db.add(message)
