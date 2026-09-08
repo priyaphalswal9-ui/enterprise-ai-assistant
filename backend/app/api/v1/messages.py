@@ -17,6 +17,10 @@ router = APIRouter(
 )
 
 
+# ---------------------------------------------------------
+# Normal Message Endpoint
+# ---------------------------------------------------------
+
 @router.post("/{conversation_id}/messages")
 def create_new_message(
     conversation_id: int,
@@ -38,34 +42,60 @@ def create_new_message(
         )
 
     # Save user message
-    message = create_message(
-        db=db,
-        conversation_id=conversation_id,
-        content=data.content,
-        role="user",
-    )
+    try:
+        message = create_message(
+            db=db,
+            conversation_id=conversation_id,
+            content=data.content,
+            role="user",
+        )
+    except Exception:
+        db.rollback()
 
-    # Get complete conversation history
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to save user message",
+        )
+
+    # Get conversation history
     conversation_history = get_conversation_messages(
         db=db,
         conversation_id=conversation_id,
     )
 
-    # Generate AI response using conversation context
+    # Generate AI response
     ai_service = AIService()
 
-    assistant_content = ai_service.generate_response(
-        data.content,
-        conversation_history,
-    )
+    try:
+        assistant_content = ai_service.generate_response(
+            data.content,
+            conversation_history,
+        )
 
-    # Save assistant message
-    assistant_message = create_message(
-        db=db,
-        conversation_id=conversation_id,
-        content=assistant_content,
-        role="assistant",
-    )
+    except RuntimeError:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=503,
+            detail="AI service is temporarily unavailable. Please try again.",
+        )
+
+    # Save assistant response
+    try:
+        assistant_message = create_message(
+            db=db,
+            conversation_id=conversation_id,
+            content=assistant_content,
+            role="assistant",
+        )
+
+    except Exception:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to save assistant message",
+        )
 
     return {
         "user_message": {
@@ -84,6 +114,116 @@ def create_new_message(
         },
     }
 
+
+# ---------------------------------------------------------
+# Streaming Message Endpoint
+# ---------------------------------------------------------
+#
+# Currently this endpoint intentionally uses the same
+# reliable complete-response flow as the normal endpoint.
+#
+# Proper token streaming will be revisited during frontend
+# integration.
+#
+# ---------------------------------------------------------
+
+@router.post("/{conversation_id}/messages/stream")
+def create_streaming_message(
+    conversation_id: int,
+    data: MessageCreate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    # Check whether conversation belongs to current user
+    conversation = get_conversation(
+        db=db,
+        conversation_id=conversation_id,
+        user_id=int(current_user["sub"]),
+    )
+
+    if not conversation:
+        raise HTTPException(
+            status_code=404,
+            detail="Conversation not found",
+        )
+
+    # Save user message
+    try:
+        message = create_message(
+            db=db,
+            conversation_id=conversation_id,
+            content=data.content,
+            role="user",
+        )
+    except Exception:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to save user message",
+        )
+
+    # Get conversation history
+    conversation_history = get_conversation_messages(
+        db=db,
+        conversation_id=conversation_id,
+    )
+
+    # Generate complete AI response
+    ai_service = AIService()
+
+    try:
+        assistant_content = ai_service.generate_response(
+            data.content,
+            conversation_history,
+        )
+
+    except RuntimeError:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=503,
+            detail="AI service is temporarily unavailable. Please try again.",
+        )
+
+    # Save assistant response
+    try:
+        assistant_message = create_message(
+            db=db,
+            conversation_id=conversation_id,
+            content=assistant_content,
+            role="assistant",
+        )
+
+    except Exception:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to save assistant message",
+        )
+
+    return {
+        "user_message": {
+            "id": message.id,
+            "conversation_id": message.conversation_id,
+            "role": message.role,
+            "content": message.content,
+            "created_at": message.created_at,
+        },
+        "assistant_message": {
+            "id": assistant_message.id,
+            "conversation_id": assistant_message.conversation_id,
+            "role": assistant_message.role,
+            "content": assistant_message.content,
+            "created_at": assistant_message.created_at,
+        },
+    }
+
+
+# ---------------------------------------------------------
+# Get Conversation Messages
+# ---------------------------------------------------------
 
 @router.get("/{conversation_id}/messages")
 def get_messages(
