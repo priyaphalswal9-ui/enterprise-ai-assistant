@@ -1,6 +1,17 @@
-from backend.app.ai.context_builder import build_conversation_context
-from backend.app.ai.provider_factory import get_llm_provider
+from backend.app.ai.context_builder import (
+    build_conversation_context,
+    build_rag_context,
+)
+
+from backend.app.ai.provider_factory import (
+    get_llm_provider,
+)
+
 from backend.app.ai.system_prompt import SYSTEM_PROMPT
+
+from backend.app.services.retrieval_service import (
+    retrieve_relevant_chunks,
+)
 
 
 class AIService:
@@ -14,15 +25,30 @@ class AIService:
         conversation_history,
     ) -> str:
 
-        context = build_conversation_context(
+        # Build conversation history context
+        conversation_context = build_conversation_context(
             conversation_history
+        )
+
+        # Retrieve relevant document chunks from Chroma
+        retrieved_chunks = retrieve_relevant_chunks(
+            query=prompt,
+            n_results=3,
+        )
+
+        # Build context from retrieved document chunks
+        rag_context = build_rag_context(
+            retrieved_chunks
         )
 
         final_prompt = f"""
 {SYSTEM_PROMPT}
 
 Conversation history:
-{context}
+{conversation_context}
+
+Relevant document context:
+{rag_context}
 
 Current user message:
 {prompt}
@@ -52,7 +78,7 @@ Current user message:
         conversation_history,
     ):
 
-        context = build_conversation_context(
+        conversation_context = build_conversation_context(
             conversation_history
         )
 
@@ -60,7 +86,7 @@ Current user message:
 {SYSTEM_PROMPT}
 
 Conversation history:
-{context}
+{conversation_context}
 
 Current user message:
 {prompt}
