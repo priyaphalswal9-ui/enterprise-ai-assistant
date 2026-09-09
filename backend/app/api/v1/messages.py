@@ -67,10 +67,13 @@ def create_new_message(
     ai_service = AIService()
 
     try:
-        assistant_content = ai_service.generate_response(
+        ai_result = ai_service.generate_response(
             data.content,
             conversation_history,
         )
+
+        assistant_content = ai_result["answer"]
+        sources = ai_result["sources"]
 
     except RuntimeError:
         db.rollback()
@@ -112,6 +115,7 @@ def create_new_message(
             "content": assistant_message.content,
             "created_at": assistant_message.created_at,
         },
+        "sources": sources,
     }
 
 
@@ -173,10 +177,13 @@ def create_streaming_message(
     ai_service = AIService()
 
     try:
-        assistant_content = ai_service.generate_response(
+        ai_result = ai_service.generate_response(
             data.content,
             conversation_history,
         )
+
+        assistant_content = ai_result["answer"]
+        sources = ai_result["sources"]
 
     except RuntimeError:
         db.rollback()
@@ -218,6 +225,7 @@ def create_streaming_message(
             "content": assistant_message.content,
             "created_at": assistant_message.created_at,
         },
+        "sources": sources,
     }
 
 

@@ -36,6 +36,15 @@ class AIService:
             n_results=3,
         )
 
+        # Prepare source information for citations
+        sources = [
+            {
+                "filename": chunk["filename"],
+                "chunk_index": chunk["metadata"]["chunk_index"],
+            }
+            for chunk in retrieved_chunks
+        ]
+
         # Build context from retrieved document chunks
         rag_context = build_rag_context(
             retrieved_chunks
@@ -65,7 +74,10 @@ Current user message:
                     "LLM provider returned an empty response"
                 )
 
-            return response
+            return {
+                "answer": response,
+                "sources": sources,
+            }
 
         except Exception as error:
             raise RuntimeError(
