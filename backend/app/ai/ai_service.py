@@ -23,6 +23,7 @@ class AIService:
         self,
         prompt: str,
         conversation_history,
+        user_id: int,
     ) -> str:
 
         # Build conversation history context
@@ -34,6 +35,7 @@ class AIService:
         retrieved_chunks = retrieve_relevant_chunks(
             query=prompt,
             n_results=3,
+            user_id=user_id,
         )
 
         # Prepare source information for citations

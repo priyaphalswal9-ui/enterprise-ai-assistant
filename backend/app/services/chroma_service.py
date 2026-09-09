@@ -17,6 +17,7 @@ def add_document_chunk(
     text: str,
     document_id: int,
     chunk_index: int,
+    user_id: int,
 ):
     embedding = generate_embedding(text)
 
@@ -28,6 +29,7 @@ def add_document_chunk(
             {
                 "document_id": document_id,
                 "chunk_index": chunk_index,
+                "user_id": user_id,
             }
         ],
     )
@@ -35,12 +37,15 @@ def add_document_chunk(
 def search_similar_chunks(
     query: str,
     n_results: int = 3,
+    user_id: int = None,
 ):
     query_embedding = generate_embedding(query)
 
     results = collection.query(
         query_embeddings=[query_embedding],
         n_results=n_results,
+        where={"user_id": user_id},
+
     )
 
     return results

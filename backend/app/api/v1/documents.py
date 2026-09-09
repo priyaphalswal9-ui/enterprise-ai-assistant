@@ -73,6 +73,7 @@ def upload_document(
                 text=chunk,
                 document_id=document.id,
                 chunk_index=index,
+                user_id=int(current_user["sub"]),
             )
 
         return document

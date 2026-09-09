@@ -70,6 +70,7 @@ def create_new_message(
         ai_result = ai_service.generate_response(
             data.content,
             conversation_history,
+            user_id=int(current_user["sub"]),
         )
 
         assistant_content = ai_result["answer"]
@@ -180,6 +181,7 @@ def create_streaming_message(
         ai_result = ai_service.generate_response(
             data.content,
             conversation_history,
+            user_id=int(current_user["sub"]),
         )
 
         assistant_content = ai_result["answer"]

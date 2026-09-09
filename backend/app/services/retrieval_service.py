@@ -6,10 +6,12 @@ from backend.app.db.database import SessionLocal
 def retrieve_relevant_chunks(
     query: str,
     n_results: int = 3,
+    user_id: int = None,
 ):
     results = search_similar_chunks(
         query=query,
         n_results=n_results,
+        user_id=user_id,
     )
 
     db = SessionLocal()
