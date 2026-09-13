@@ -36,7 +36,7 @@ def add_document_chunk(
 
 def search_similar_chunks(
     query: str,
-    n_results: int = 3,
+    n_results: int = 5,
     user_id: int = None,
 ):
     query_embedding = generate_embedding(query)
@@ -47,6 +47,6 @@ def search_similar_chunks(
         where={"user_id": user_id},
 
     )
-
+    
     return results
 

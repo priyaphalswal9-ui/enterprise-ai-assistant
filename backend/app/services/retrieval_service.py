@@ -8,9 +8,11 @@ def retrieve_relevant_chunks(
     n_results: int = 3,
     user_id: int = None,
 ):
+    candidate_count = 5
+
     results = search_similar_chunks(
         query=query,
-        n_results=n_results,
+        n_results=candidate_count,
         user_id=user_id,
     )
 
@@ -34,11 +36,19 @@ def retrieve_relevant_chunks(
                     "text": results["documents"][0][i],
                     "metadata": results["metadatas"][0][i],
                     "distance": results["distances"][0][i],
-                    "filename": document.filename if document else "Unknown",
+                    "filename": document.filename
+                    if document
+                    else "Unknown",
                 }
             )
 
-        return retrieved_chunks
+        # Chroma already returns candidates ordered by distance.
+        # Keep only the best requested number of chunks.
+        retrieved_chunks.sort(
+            key=lambda chunk: chunk["distance"]
+        )
+
+        return retrieved_chunks[:n_results]
 
     finally:
         db.close()
