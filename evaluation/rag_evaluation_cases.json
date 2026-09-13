@@ -1,0 +1,22 @@
+[
+  {
+    "query": "What is the charge sheet about and what amount is involved?",
+    "expected_filename": "appliction.docx"
+  },
+  {
+    "query": "Who is the charge sheet against?",
+    "expected_filename": "appliction.docx"
+  },
+  {
+    "query": "What amount is mentioned in the charge sheet?",
+    "expected_filename": "appliction.docx"
+  },
+  {
+    "query": "What happened regarding the new connection?",
+    "expected_filename": "appliction.docx"
+  },
+  {
+    "query": "What case is mentioned in the charge sheet?",
+    "expected_filename": "appliction.docx"
+  }
+]
