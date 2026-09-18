@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
-from backend.app.services.document_tool_service import (
-    list_user_documents,
+from backend.app.ai.tool_registry import (
+    get_tool_handler,
 )
 
 
@@ -11,12 +11,9 @@ def execute_tool(
     db: Session,
     user_id: int,
 ):
-    if tool_name == "list_user_documents":
-        return list_user_documents(
-            db=db,
-            user_id=user_id,
-        )
+    handler = get_tool_handler(tool_name)
 
-    raise ValueError(
-        f"Unknown tool: {tool_name}"
+    return handler(
+        db=db,
+        user_id=user_id,
     )
