@@ -16,4 +16,5 @@ def execute_tool(
     return handler(
         db=db,
         user_id=user_id,
+        **arguments,
     )

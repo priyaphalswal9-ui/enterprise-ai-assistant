@@ -1,10 +1,12 @@
 from backend.app.services.document_tool_service import (
     list_user_documents,
+    search_documents,
 )
 
 
 TOOL_HANDLERS = {
     "list_user_documents": list_user_documents,
+    "search_documents": search_documents,
 }
 
 

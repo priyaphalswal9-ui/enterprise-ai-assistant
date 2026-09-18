@@ -14,5 +14,25 @@ DOCUMENT_TOOLS = [
                 "required": [],
             },
         },
-    }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_documents",
+            "description": (
+                "Search the current user's uploaded documents "
+                "for information relevant to a query."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The information to search for.",
+                    }
+                },
+                "required": ["query"],
+            },
+        },
+    },
 ]

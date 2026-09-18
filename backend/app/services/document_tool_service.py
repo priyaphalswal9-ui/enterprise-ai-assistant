@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 
 from backend.app.models.document import Document
+from backend.app.services.retrieval_service import retrieve_relevant_chunks
 
 
 def list_user_documents(
@@ -24,3 +25,16 @@ def list_user_documents(
         }
         for document in documents
     ]
+
+
+def search_documents(
+    db: Session,
+    user_id: int,
+    query: str,
+) -> list[dict]:
+
+    return retrieve_relevant_chunks(
+        query=query,
+        n_results=5,
+        user_id=user_id,
+    )
