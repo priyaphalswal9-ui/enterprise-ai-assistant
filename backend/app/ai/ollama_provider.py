@@ -76,3 +76,41 @@ class OllamaProvider(BaseLLMProvider):
 
             if content:
                 yield content
+
+    def generate_with_tools(
+        self,
+        prompt: str,
+        conversation_history,
+        tools: list,
+    ):
+
+        last_error = None
+
+        messages = conversation_history or [
+            {
+                "role": "user",
+                "content": prompt,
+            }
+        ]
+
+        for attempt in range(self.max_retries):
+
+            try:
+                response = self.client.chat(
+                    model=self.model,
+                    messages=messages,
+                    tools=tools,
+                )
+
+                return response
+
+            except Exception as error:
+                last_error = error
+
+                if attempt < self.max_retries - 1:
+                    time.sleep(self.retry_delay)
+                else:
+                    raise RuntimeError(
+                        f"Ollama tool calling failed after "
+                        f"{self.max_retries} attempts: {last_error}"
+                    ) from last_error

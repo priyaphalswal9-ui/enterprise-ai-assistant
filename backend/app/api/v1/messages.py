@@ -71,6 +71,7 @@ def create_new_message(
             data.content,
             conversation_history,
             user_id=int(current_user["sub"]),
+            db=db,
         )
 
         assistant_content = ai_result["answer"]
@@ -182,6 +183,7 @@ def create_streaming_message(
             data.content,
             conversation_history,
             user_id=int(current_user["sub"]),
+            db=db,
         )
 
         assistant_content = ai_result["answer"]
@@ -209,7 +211,7 @@ def create_streaming_message(
 
         raise HTTPException(
             status_code=500,
-            detail="Failed to save assistant message",
+            detail="Failed to save assistant response",
         )
 
     return {

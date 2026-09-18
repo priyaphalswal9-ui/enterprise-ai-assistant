@@ -10,3 +10,12 @@ class BaseLLMProvider(ABC):
     @abstractmethod
     def generate_stream(self, prompt: str, conversation_history):
         pass
+
+    @abstractmethod
+    def generate_with_tools(
+        self,
+        prompt: str,
+        conversation_history,
+        tools: list,
+    ):
+        pass
