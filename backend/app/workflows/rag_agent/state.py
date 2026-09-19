@@ -18,3 +18,6 @@ class AgentState(TypedDict):
     context: str
     answer: str
     sources: list[dict]
+
+    final_prompt: str
+    streaming: bool

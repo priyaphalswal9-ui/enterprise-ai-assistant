@@ -17,7 +17,6 @@ from backend.app.workflows.rag_agent.state import AgentState
 def classify_request(state: AgentState) -> AgentState:
     query = state["query"].lower().strip()
 
-    # Questions asking for a list of uploaded documents
     if any(
         phrase in query
         for phrase in [
@@ -31,11 +30,7 @@ def classify_request(state: AgentState) -> AgentState:
         ]
     ):
         state["intent"] = "tool"
-
     else:
-        # By default, try document retrieval.
-        # If no useful document context is found,
-        # the RAG answer node can handle the lack of context.
         state["intent"] = "rag"
 
     return state
@@ -58,10 +53,13 @@ Current user message:
 {state["query"]}
 """
 
-    state["answer"] = provider.generate(
-        prompt=prompt,
-        conversation_history=[],
-    )
+    if state["streaming"]:
+        state["final_prompt"] = prompt
+    else:
+        state["answer"] = provider.generate(
+            prompt=prompt,
+            conversation_history=[],
+        )
 
     return state
 
@@ -110,7 +108,6 @@ IMPORTANT:
     else:
         document_instruction = """
 No relevant information was retrieved from the user's uploaded documents.
-
 Do not invent an answer from the documents.
 Clearly state that the information could not be found.
 """
@@ -132,12 +129,16 @@ Current user question:
 Answer the user's question directly and concisely.
 """
 
-    state["answer"] = provider.generate(
-        prompt=prompt,
-        conversation_history=[],
-    )
+    if state["streaming"]:
+        state["final_prompt"] = prompt
+    else:
+        state["answer"] = provider.generate(
+            prompt=prompt,
+            conversation_history=[],
+        )
 
     return state
+
 
 def tool_node(state: AgentState) -> AgentState:
     provider = get_llm_provider()
@@ -157,14 +158,12 @@ Current user message:
 
 You have access to tools for working with the user's documents.
 
-If the user asks what documents they uploaded, use
-list_user_documents.
+If the user asks what documents they uploaded, use list_user_documents.
 
 If the user asks for information contained in their documents,
 use search_documents.
 
-For search_documents, always provide the user's question
-as the query argument.
+For search_documents, always provide the user's question as the query argument.
 
 Do not use a tool for general knowledge questions.
 """
@@ -177,11 +176,16 @@ Do not use a tool for general knowledge questions.
 
     tool_calls = getattr(response.message, "tool_calls", None)
 
+    # No tool call
     if not tool_calls:
-        state["answer"] = provider.generate(
-            prompt=tool_prompt,
-            conversation_history=[],
-        )
+        if state["streaming"]:
+            state["final_prompt"] = tool_prompt
+        else:
+            state["answer"] = provider.generate(
+                prompt=tool_prompt,
+                conversation_history=[],
+            )
+
         return state
 
     db: Session = state["db"]
@@ -195,7 +199,6 @@ Do not use a tool for general knowledge questions.
         if isinstance(arguments, str):
             arguments = json.loads(arguments)
 
-        # Fallback for local LLMs that omit the query argument.
         if tool_name == "search_documents":
             if not isinstance(arguments, dict):
                 arguments = {}
@@ -230,18 +233,20 @@ Tool results:
 
 Answer the user's question using the tool results above.
 
-Do not mention tools, databases, internal systems,
-or implementation details.
+Do not mention tools, databases, internal systems, or implementation details.
 
-If the tool results do not contain enough information,
-say so clearly.
+If the tool results do not contain enough information, say so clearly.
 """
 
-    state["answer"] = provider.generate(
-        prompt=final_prompt,
-        conversation_history=[],
-    )
+    if state["streaming"]:
+        state["final_prompt"] = final_prompt
+    else:
+        state["answer"] = provider.generate(
+            prompt=final_prompt,
+            conversation_history=[],
+        )
 
+    # Add document sources returned by search_documents
     for tool_result in tool_results:
         result = tool_result["result"]
 

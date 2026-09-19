@@ -1,3 +1,5 @@
+import json
+from fastapi.responses import StreamingResponse
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -140,11 +142,10 @@ def create_streaming_message(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    # Check whether conversation belongs to current user
     conversation = get_conversation(
-        db=db,
-        conversation_id=conversation_id,
-        user_id=int(current_user["sub"]),
+        db,
+        conversation_id,
+        int(current_user["sub"]),
     )
 
     if not conversation:
@@ -153,9 +154,8 @@ def create_streaming_message(
             detail="Conversation not found",
         )
 
-    # Save user message
     try:
-        message = create_message(
+        user_message = create_message(
             db=db,
             conversation_id=conversation_id,
             content=data.content,
@@ -163,76 +163,79 @@ def create_streaming_message(
         )
     except Exception:
         db.rollback()
-
         raise HTTPException(
             status_code=500,
             detail="Failed to save user message",
         )
 
-    # Get conversation history
     conversation_history = get_conversation_messages(
-        db=db,
-        conversation_id=conversation_id,
+        db,
+        conversation_id,
     )
 
-    # Generate complete AI response
     ai_service = AIService()
 
     try:
-        ai_result = ai_service.generate_response(
-            data.content,
-            conversation_history,
+        sources, token_stream = ai_service.generate_response_stream(
+            prompt=data.content,
+            conversation_history=conversation_history,
             user_id=int(current_user["sub"]),
             db=db,
         )
-
-        assistant_content = ai_result["answer"]
-        sources = ai_result["sources"]
-
-    except RuntimeError:
+    except Exception as error:
         db.rollback()
-
         raise HTTPException(
             status_code=503,
-            detail="AI service is temporarily unavailable. Please try again.",
+            detail=f"AI generation failed: {error}",
         )
 
-    # Save assistant response
-    try:
-        assistant_message = create_message(
-            db=db,
-            conversation_id=conversation_id,
-            content=assistant_content,
-            role="assistant",
+    def event_stream():
+        full_response = []
+
+        yield (
+            f"event: sources\n"
+            f"data: {json.dumps({'sources': sources})}\n\n"
         )
 
-    except Exception:
-        db.rollback()
+        try:
+            for token in token_stream:
+                full_response.append(token)
 
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to save assistant response",
-        )
+                yield (
+                    f"event: token\n"
+                    f"data: {json.dumps({'text': token})}\n\n"
+                )
 
-    return {
-        "user_message": {
-            "id": message.id,
-            "conversation_id": message.conversation_id,
-            "role": message.role,
-            "content": message.content,
-            "created_at": message.created_at,
+            assistant_content = "".join(full_response)
+
+            assistant_message = create_message(
+                db=db,
+                conversation_id=conversation_id,
+                content=assistant_content,
+                role="assistant",
+            )
+
+            yield (
+                f"event: done\n"
+                f"data: {json.dumps({'message_id': assistant_message.id})}\n\n"
+            )
+
+        except Exception as error:
+            db.rollback()
+
+            yield (
+                f"event: error\n"
+                f"data: {json.dumps({'detail': str(error)})}\n\n"
+            )
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
         },
-        "assistant_message": {
-            "id": assistant_message.id,
-            "conversation_id": assistant_message.conversation_id,
-            "role": assistant_message.role,
-            "content": assistant_message.content,
-            "created_at": assistant_message.created_at,
-        },
-        "sources": sources,
-    }
-
-
+    )
 # ---------------------------------------------------------
 # Get Conversation Messages
 # ---------------------------------------------------------
