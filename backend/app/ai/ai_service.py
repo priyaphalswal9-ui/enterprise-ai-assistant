@@ -1,61 +1,22 @@
+import json
+
 from sqlalchemy.orm import Session
 
 from backend.app.ai.context_builder import (
     build_conversation_context,
     build_rag_context,
 )
-
-from backend.app.ai.provider_factory import (
-    get_llm_provider,
-)
-
+from backend.app.ai.provider_factory import get_llm_provider
 from backend.app.ai.system_prompt import SYSTEM_PROMPT
-
-from backend.app.ai.tool_executor import (
-    execute_tool,
-)
+from backend.app.ai.tools import DOCUMENT_TOOLS
+from backend.app.ai.tool_executor import execute_tool
+from backend.app.services.retrieval_service import retrieve_relevant_chunks
 
 
 class AIService:
 
     def __init__(self):
         self.provider = get_llm_provider()
-
-    def is_document_list_query(self, prompt: str) -> bool:
-        text = prompt.lower()
-
-        keywords = [
-            "what documents",
-            "which documents",
-            "my documents",
-            "uploaded documents",
-            "documents have i uploaded",
-            "list my documents",
-        ]
-
-        return any(
-            keyword in text
-            for keyword in keywords
-        )
-
-    def is_document_search_query(self, prompt: str) -> bool:
-        text = prompt.lower()
-
-        keywords = [
-            "according to the document",
-            "according to the documents",
-            "in the document",
-            "in the documents",
-            "what does the document say",
-            "what do the documents say",
-            "find in my documents",
-            "search my documents",
-        ]
-
-        return any(
-            keyword in text
-            for keyword in keywords
-        )
 
     def generate_response(
         self,
@@ -66,56 +27,57 @@ class AIService:
     ) -> dict:
 
         try:
+            conversation_context = build_conversation_context(
+                conversation_history
+            )
 
             # -----------------------------------------
-            # DOCUMENT LIST TOOL
+            # TOOL-CALLING FLOW
             # -----------------------------------------
 
-            if self.is_document_list_query(prompt):
+            tool_prompt = f"""
+{SYSTEM_PROMPT}
 
-                tool_result = execute_tool(
-                    tool_name="list_user_documents",
-                    arguments={},
-                    db=db,
-                    user_id=user_id,
-                )
+Conversation history:
+{conversation_context}
 
-                if not tool_result:
-                    return {
-                        "answer": "You have not uploaded any documents.",
-                        "sources": [],
-                    }
+Current user message:
+{prompt}
 
-                document_lines = []
+You have access to tools for working with the user's documents.
+Use a tool when the user's request requires information about
+their uploaded documents.
 
-                for index, document in enumerate(
-                    tool_result,
-                    start=1,
-                ):
-                    document_lines.append(
-                        f"{index}. {document['filename']}"
-                    )
+If the user asks what documents they uploaded, use
+list_user_documents.
 
-                return {
-                    "answer": (
-                        "You have uploaded the following documents:\n\n"
-                        + "\n".join(document_lines)
-                    ),
-                    "sources": [],
-                }
+If the user asks for information contained in their documents,
+use search_documents.
+
+Do not use a tool for general knowledge questions.
+"""
+
+            response = self.provider.generate_with_tools(
+                prompt=tool_prompt,
+                conversation_history=[],
+                tools=DOCUMENT_TOOLS,
+            )
+
+            tool_calls = getattr(
+                response.message,
+                "tool_calls",
+                None,
+            )
 
             # -----------------------------------------
-            # DOCUMENT SEARCH TOOL
+            # NO TOOL CALL
             # -----------------------------------------
 
-            if self.is_document_search_query(prompt):
+            if not tool_calls:
 
-                tool_result = execute_tool(
-                    tool_name="search_documents",
-                    arguments={
-                        "query": prompt,
-                    },
-                    db=db,
+                retrieved_chunks = retrieve_relevant_chunks(
+                    query=prompt,
+                    n_results=3,
                     user_id=user_id,
                 )
 
@@ -124,76 +86,14 @@ class AIService:
                         "filename": chunk["filename"],
                         "chunk_index": chunk["metadata"]["chunk_index"],
                     }
-                    for chunk in tool_result
+                    for chunk in retrieved_chunks
                 ]
 
-                document_context = build_rag_context(
-                    tool_result
+                rag_context = build_rag_context(
+                    retrieved_chunks
                 )
 
-                search_prompt = f"""
-{SYSTEM_PROMPT}
-
-Relevant information from the user's documents:
-{document_context}
-
-Current user question:
-{prompt}
-
-Answer the question using the relevant document information above.
-Do not mention tools, databases, internal systems, or implementation details.
-If the documents do not contain enough information to answer the question,
-say so clearly.
-"""
-
-                response = self.provider.generate(
-                    prompt=search_prompt,
-                    conversation_history=[],
-                )
-
-                if not response:
-                    raise RuntimeError(
-                        "LLM provider returned an empty response"
-                    )
-
-                return {
-                    "answer": response,
-                    "sources": sources,
-                }
-
-            # -----------------------------------------
-            # NORMAL RAG FLOW
-            # -----------------------------------------
-
-            conversation_context = (
-                build_conversation_context(
-                    conversation_history
-                )
-            )
-
-            from backend.app.services.retrieval_service import (
-                retrieve_relevant_chunks,
-            )
-
-            retrieved_chunks = retrieve_relevant_chunks(
-                query=prompt,
-                n_results=3,
-                user_id=user_id,
-            )
-
-            sources = [
-                {
-                    "filename": chunk["filename"],
-                    "chunk_index": chunk["metadata"]["chunk_index"],
-                }
-                for chunk in retrieved_chunks
-            ]
-
-            rag_context = build_rag_context(
-                retrieved_chunks
-            )
-
-            final_prompt = f"""
+                final_prompt = f"""
 {SYSTEM_PROMPT}
 
 Conversation history:
@@ -206,18 +106,112 @@ Current user message:
 {prompt}
 """
 
-            response = self.provider.generate(
+                answer = self.provider.generate(
+                    prompt=final_prompt,
+                    conversation_history=[],
+                )
+
+                if not answer:
+                    raise RuntimeError(
+                        "LLM provider returned an empty response"
+                    )
+
+                return {
+                    "answer": answer,
+                    "sources": sources,
+                }
+
+            # -----------------------------------------
+            # TOOL EXECUTION
+            # -----------------------------------------
+
+            tool_results = []
+
+            for tool_call in tool_calls:
+
+                tool_name = tool_call.function.name
+                arguments = tool_call.function.arguments or {}
+
+                if isinstance(arguments, str):
+                    arguments = json.loads(arguments)
+
+                result = execute_tool(
+                    tool_name=tool_name,
+                    arguments=arguments,
+                    db=db,
+                    user_id=user_id,
+                )
+
+                tool_results.append(
+                    {
+                        "tool": tool_name,
+                        "result": result,
+                    }
+                )
+
+            # -----------------------------------------
+            # FINAL RESPONSE AFTER TOOL
+            # -----------------------------------------
+
+            final_prompt = f"""
+{SYSTEM_PROMPT}
+
+Current user message:
+{prompt}
+
+Tool results:
+{json.dumps(tool_results, indent=2, default=str)}
+
+Answer the user's question using the tool results above.
+
+Do not mention tools, databases, internal systems,
+or implementation details.
+
+If the tool results do not contain enough information,
+say so clearly.
+"""
+
+            answer = self.provider.generate(
                 prompt=final_prompt,
-                conversation_history=conversation_history,
+                conversation_history=[],
             )
 
-            if not response:
+            if not answer:
                 raise RuntimeError(
                     "LLM provider returned an empty response"
                 )
 
+            # -----------------------------------------
+            # BUILD SOURCES
+            # -----------------------------------------
+
+            sources = []
+
+            for tool_result in tool_results:
+
+                result = tool_result["result"]
+
+                if not isinstance(result, list):
+                    continue
+
+                for item in result:
+
+                    if (
+                        isinstance(item, dict)
+                        and "filename" in item
+                        and "metadata" in item
+                    ):
+                        sources.append(
+                            {
+                                "filename": item["filename"],
+                                "chunk_index": item["metadata"][
+                                    "chunk_index"
+                                ],
+                            }
+                        )
+
             return {
-                "answer": response,
+                "answer": answer,
                 "sources": sources,
             }
 
@@ -233,10 +227,8 @@ Current user message:
         conversation_history,
     ):
 
-        conversation_context = (
-            build_conversation_context(
-                conversation_history
-            )
+        conversation_context = build_conversation_context(
+            conversation_history
         )
 
         final_prompt = f"""

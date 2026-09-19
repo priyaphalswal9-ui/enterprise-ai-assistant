@@ -28,3 +28,23 @@ def run_rag_evaluation(
         user_id=user_id,
         k=3,
     )
+from pydantic import BaseModel
+
+from backend.app.services.evaluation_service import evaluate_answer
+
+
+class AnswerEvaluationRequest(BaseModel):
+    question: str
+    answer: str
+    context: str
+
+
+@router.post("/answer")
+def run_answer_evaluation(
+    request: AnswerEvaluationRequest,
+):
+    return evaluate_answer(
+        question=request.question,
+        answer=request.answer,
+        context=request.context,
+    )

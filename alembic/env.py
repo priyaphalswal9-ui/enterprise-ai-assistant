@@ -11,6 +11,7 @@ from backend.app.models.conversation import Conversation
 from backend.app.models.message import Message
 from backend.app.models.document import Document
 from backend.app.models.document_chunk import DocumentChunk
+from backend.app.models.evaluation import Evaluation
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

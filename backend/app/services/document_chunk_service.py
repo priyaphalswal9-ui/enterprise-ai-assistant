@@ -27,3 +27,15 @@ def create_document_chunks(
         db.refresh(document_chunk)
 
     return document_chunks
+
+def delete_document_chunks(
+    db: Session,
+    document_id: int,
+) -> None:
+    db.query(DocumentChunk).filter(
+        DocumentChunk.document_id == document_id
+    ).delete(
+        synchronize_session=False
+    )
+
+    db.commit()

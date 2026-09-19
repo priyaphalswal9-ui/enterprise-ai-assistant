@@ -13,6 +13,12 @@ def execute_tool(
 ):
     handler = get_tool_handler(tool_name)
 
+    if tool_name == "list_user_documents":
+        return handler(
+            db=db,
+            user_id=user_id,
+        )
+
     return handler(
         db=db,
         user_id=user_id,

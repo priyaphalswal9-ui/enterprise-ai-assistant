@@ -34,6 +34,7 @@ def add_document_chunk(
         ],
     )
 
+
 def search_similar_chunks(
     query: str,
     n_results: int = 5,
@@ -45,8 +46,20 @@ def search_similar_chunks(
         query_embeddings=[query_embedding],
         n_results=n_results,
         where={"user_id": user_id},
-
     )
-    
+
     return results
+
+
+def delete_document_chunks(
+    document_id: int,
+):
+    results = collection.get(
+        where={"document_id": document_id}
+    )
+
+    ids = results.get("ids", [])
+
+    if ids:
+        collection.delete(ids=ids)
 

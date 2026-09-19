@@ -34,3 +34,26 @@ def get_user_documents(
         .order_by(Document.created_at.desc())
         .all()
     )
+
+
+def get_user_document(
+    db: Session,
+    document_id: int,
+    user_id: int,
+) -> Document | None:
+    return (
+        db.query(Document)
+        .filter(
+            Document.id == document_id,
+            Document.user_id == user_id,
+        )
+        .first()
+    )
+
+
+def delete_document(
+    db: Session,
+    document: Document,
+) -> None:
+    db.delete(document)
+    db.commit()
