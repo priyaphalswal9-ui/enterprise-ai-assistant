@@ -1,8 +1,6 @@
 from sqlalchemy.orm import Session
 
-from backend.app.ai.tool_registry import (
-    get_tool_handler,
-)
+from backend.app.ai.tool_registry import get_tool_handler
 
 
 def execute_tool(
@@ -19,8 +17,16 @@ def execute_tool(
             user_id=user_id,
         )
 
-    return handler(
-        db=db,
-        user_id=user_id,
-        **arguments,
-    )
+    if tool_name == "search_documents":
+        query = arguments.get("query")
+
+        if not query:
+            raise ValueError("search_documents requires a query")
+
+        return handler(
+            db=db,
+            user_id=user_id,
+            query=query,
+        )
+
+    raise ValueError(f"Unsupported tool: {tool_name}")

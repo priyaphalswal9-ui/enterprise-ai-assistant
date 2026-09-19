@@ -19,12 +19,7 @@ def calculate_cosine_similarity(vector_a, vector_b):
     return dot_product / (magnitude_a * magnitude_b)
 
 
-def mmr_select(
-    query_embedding,
-    chunks,
-    n_results,
-    lambda_param=0.7,
-):
+def mmr_select(query_embedding, chunks, n_results, lambda_param=0.7):
     selected = []
     remaining = chunks.copy()
 
@@ -66,10 +61,12 @@ def mmr_select(
 
 def retrieve_relevant_chunks(
     query: str,
-    n_results: int = 3,
+    n_results: int = 5,
     user_id: int = None,
 ):
-    candidate_count = 5
+    # Retrieve more candidates so relevant chunks are not
+    # eliminated before MMR selection.
+    candidate_count = 10
 
     query_variations = generate_query_variations(query)
 
@@ -101,6 +98,16 @@ def retrieve_relevant_chunks(
 
                 chunk_text = results["documents"][0][i]
 
+                # Avoid keeping identical chunks from duplicate
+                # uploads of the same document.
+                duplicate = any(
+                    existing["text"] == chunk_text
+                    for existing in all_chunks.values()
+                )
+
+                if duplicate:
+                    continue
+
                 all_chunks[chunk_id] = {
                     "chunk_id": chunk_id,
                     "text": chunk_text,
@@ -115,6 +122,9 @@ def retrieve_relevant_chunks(
                 }
 
         candidates = list(all_chunks.values())
+
+        if not candidates:
+            return []
 
         query_embedding = generate_embedding(query)
 
