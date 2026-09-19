@@ -63,19 +63,13 @@ def evaluate_rag(user_id: int, k: int = 3):
         "results": results,
     }
 
-
-def evaluate_answer(
-    question: str,
-    answer: str,
-    context: str,
-) -> dict:
-
+def evaluate_answer(question: str, answer: str, context: str) -> dict:
     provider = get_llm_provider()
 
     evaluation_prompt = f"""
 You are an evaluator for a Retrieval-Augmented Generation system.
 
-Evaluate the answer using only the provided context.
+Evaluate the answer using ONLY the provided context.
 
 Question:
 {question}
@@ -98,7 +92,10 @@ How directly does the answer address the user's question?
 How well is the answer supported by the provided context?
 Penalize unsupported claims or information not present in the context.
 
-Return ONLY valid JSON.
+Return ONLY a valid JSON object.
+Do not use Markdown.
+Do not use code fences.
+Do not add any text before or after the JSON.
 
 Use exactly this format:
 
@@ -112,12 +109,25 @@ Use exactly this format:
 
     result = provider.generate(
         prompt=evaluation_prompt,
-        conversation_history=[],
+        conversation_history=[]
     )
 
     try:
-        evaluation = json.loads(result)
-    except json.JSONDecodeError as error:
+        cleaned_result = result.strip()
+
+        start = cleaned_result.find("{")
+        end = cleaned_result.rfind("}")
+
+        if start == -1 or end == -1:
+            raise ValueError(
+                f"No JSON object found in evaluation response: {result}"
+            )
+
+        cleaned_result = cleaned_result[start:end + 1]
+
+        evaluation = json.loads(cleaned_result)
+
+    except (json.JSONDecodeError, ValueError) as error:
         raise RuntimeError(
             f"Evaluation model returned invalid JSON: {result}"
         ) from error
