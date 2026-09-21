@@ -1,0 +1,126 @@
+.sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: var(--sidebar-width);
+
+  display: flex;
+  flex-direction: column;
+
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+
+  padding: 30px 22px;
+}
+
+.sidebar-brand {
+  padding: 0 4px 54px;
+}
+
+.brand-name {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--primary);
+}
+
+.brand-subtitle {
+  margin-top: 9px;
+  max-width: 170px;
+
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.nav-item {
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  padding: 9px 4px;
+
+  border: 0;
+  border-left: 2px solid transparent;
+  border-radius: 0;
+
+  background: transparent;
+  color: var(--text-muted);
+
+  font-size: 13px;
+  text-align: left;
+
+  transition:
+    color 150ms ease,
+    border-color 150ms ease;
+}
+
+.nav-item:hover {
+  color: var(--primary);
+}
+
+.nav-item.active {
+  border-left-color: var(--accent);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.nav-item.active svg {
+  color: var(--accent);
+}
+
+.sidebar-bottom {
+  margin-top: auto;
+}
+
+.sidebar-bottom > .nav-item {
+  margin-bottom: 22px;
+}
+
+.sidebar-account {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.account-avatar {
+  width: 30px;
+  height: 30px;
+
+  display: grid;
+  place-items: center;
+
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+
+  background: transparent;
+  color: var(--primary);
+
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.account-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.account-label {
+  margin-top: 1px;
+  color: var(--text-muted);
+  font-size: 10px;
+}

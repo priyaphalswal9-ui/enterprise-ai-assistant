@@ -6,6 +6,16 @@ from backend.app.core.security import create_access_token, decode_access_token
 from backend.app.db.database import SessionLocal
 from backend.app.schemas.auth import LoginRequest, RegisterRequest
 from backend.app.services.auth_service import authenticate_user, register_user
+from backend.app.schemas.auth import (
+    ChangePasswordRequest,
+    LoginRequest,
+    RegisterRequest,
+)
+from backend.app.services.auth_service import (
+    authenticate_user,
+    change_password,
+    register_user,
+)
 
 security = HTTPBearer()
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -33,6 +43,7 @@ def register(
             "user": {
                 "id": user.id,
                 "email": user.email,
+                "name": user.name,
                 "role": user.role,
             },
         }
@@ -54,6 +65,7 @@ def login(
         access_token = create_access_token(
             {
                 "sub": str(user.id),
+                "name": user.name,
                 "email": user.email,
                 "role": user.role,
             }
@@ -93,3 +105,27 @@ def get_me(
     return {
         "user": current_user
     }
+
+@router.post("/change-password")
+def change_user_password(
+    data: ChangePasswordRequest,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        user_id = int(current_user["sub"])
+
+        change_password(
+            db,
+            user_id,
+            data.current_password,
+            data.new_password,
+        )
+
+        return {"message": "Password changed successfully"}
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        )

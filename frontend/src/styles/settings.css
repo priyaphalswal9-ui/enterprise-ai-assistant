@@ -1,0 +1,223 @@
+.settings-page {
+  max-width: 900px;
+}
+
+.settings-header {
+  padding-bottom: 32px;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-header h1 {
+  margin-top: 8px;
+  font-size: 30px;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+}
+
+.settings-header > p:last-child {
+  margin-top: 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.settings-content {
+  max-width: 760px;
+  margin-top: 34px;
+}
+
+.settings-section {
+  margin-bottom: 36px;
+}
+
+.settings-section-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-section-heading svg {
+  margin-top: 3px;
+  color: var(--accent);
+}
+
+.settings-section-heading h2 {
+  font-size: 18px;
+}
+
+.settings-section-heading p {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.settings-list {
+  border-bottom: 1px solid var(--border);
+}
+
+.setting-row {
+  width: 100%;
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 15px 4px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+}
+
+.setting-row:last-child {
+  border-bottom: 0;
+}
+
+.setting-label,
+.setting-value {
+  display: block;
+}
+
+.setting-label {
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.setting-value {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.setting-action {
+  cursor: pointer;
+}
+
+.setting-action:hover .setting-label {
+  color: var(--accent);
+}
+
+.setting-action > svg {
+  color: var(--text-muted);
+}
+
+.logout-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 15px;
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.logout-button:hover {
+  border-color: var(--danger);
+  background: var(--surface);
+}
+
+@media (max-width: 700px) {
+  .settings-header h1 {
+    font-size: 26px;
+  }
+
+  .settings-content {
+    margin-top: 26px;
+  }
+}
+.password-form {
+  padding: 22px;
+}
+
+.password-form-heading h3 {
+  font-size: 15px;
+}
+
+.password-form-heading p {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.password-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 17px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.password-form input {
+  width: 100%;
+  padding: 10px 11px;
+  border: 1px solid var(--border);
+  outline: none;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.password-form input:focus {
+  border-color: var(--accent);
+}
+
+.password-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.password-submit,
+.password-cancel {
+  padding: 9px 14px;
+  border: 1px solid var(--border-strong);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.password-submit {
+  background: var(--primary);
+  color: var(--surface);
+}
+
+.password-submit:hover {
+  background: var(--accent);
+}
+
+.password-submit:disabled,
+.password-cancel:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.password-cancel {
+  background: transparent;
+  color: var(--text);
+}
+
+.password-cancel:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.settings-error,
+.settings-success {
+  margin-top: 12px;
+  font-size: 12px;
+}
+
+.settings-error {
+  color: var(--danger);
+}
+
+.settings-success {
+  color: #47734f;
+}
