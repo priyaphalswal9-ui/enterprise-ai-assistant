@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 
 from backend.app.models.conversation import Conversation
+from backend.app.models.message import Message
 from backend.app.schemas.conversation import ConversationCreate
 
 
@@ -20,6 +21,7 @@ def create_conversation(
 
     return conversation
 
+
 def get_user_conversations(
     db: Session,
     user_id: int,
@@ -30,6 +32,8 @@ def get_user_conversations(
         .order_by(Conversation.updated_at.desc())
         .all()
     )
+
+
 def get_conversation(
     db: Session,
     conversation_id: int,
@@ -43,6 +47,7 @@ def get_conversation(
         )
         .first()
     )
+
 
 def delete_conversation(
     db: Session,
@@ -61,6 +66,14 @@ def delete_conversation(
     if not conversation:
         return False
 
+    # Delete messages belonging to this conversation first
+    db.query(Message).filter(
+        Message.conversation_id == conversation_id
+    ).delete(
+        synchronize_session=False
+    )
+
+    # Then delete the conversation
     db.delete(conversation)
     db.commit()
 
