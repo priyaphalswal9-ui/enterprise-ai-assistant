@@ -18,10 +18,19 @@ def load_evaluation_cases():
 
 
 def evaluate_rag(user_id: int, k: int = 3):
+    """
+    Evaluate retrieval quality using the RAG evaluation dataset.
+
+    Metrics:
+    - Hit@K: whether the expected document appears in top-K results.
+    - MRR: how highly the expected document is ranked.
+    """
+
     cases = load_evaluation_cases()
 
     results = []
     hits = 0
+    reciprocal_ranks = []
 
     for case in cases:
         query = case["query"]
@@ -33,15 +42,36 @@ def evaluate_rag(user_id: int, k: int = 3):
             user_id=user_id,
         )
 
-        retrieved_filenames = [
-            chunk["filename"]
-            for chunk in retrieved_chunks
-        ]
+        # Multiple chunks can belong to the same document.
+        # Keep only the first occurrence because retrieval
+        # order represents the document ranking.
+        retrieved_filenames = []
 
+        for chunk in retrieved_chunks:
+            filename = chunk["filename"]
+
+            if filename not in retrieved_filenames:
+                retrieved_filenames.append(filename)
+
+        # -----------------------------
+        # Hit@K
+        # -----------------------------
         hit = expected_filename in retrieved_filenames
 
+        # -----------------------------
+        # MRR
+        # -----------------------------
         if hit:
             hits += 1
+
+            rank = retrieved_filenames.index(expected_filename) + 1
+
+            reciprocal_rank = 1 / rank
+        else:
+            rank = None
+            reciprocal_rank = 0.0
+
+        reciprocal_ranks.append(reciprocal_rank)
 
         results.append(
             {
@@ -49,21 +79,49 @@ def evaluate_rag(user_id: int, k: int = 3):
                 "expected_filename": expected_filename,
                 "retrieved_filenames": retrieved_filenames,
                 "hit": hit,
+                "rank": rank,
+                "reciprocal_rank": round(reciprocal_rank, 3),
             }
         )
 
     total_cases = len(cases)
 
-    hit_at_k = hits / total_cases if total_cases else 0
+    # Hit@K
+    hit_at_k = (
+        hits / total_cases
+        if total_cases
+        else 0.0
+    )
+
+    # Mean Reciprocal Rank
+    mrr = (
+        sum(reciprocal_ranks) / total_cases
+        if total_cases
+        else 0.0
+    )
 
     return {
         "total_cases": total_cases,
         "successful_cases": hits,
         "hit_at_k": round(hit_at_k, 3),
+        "mrr": round(mrr, 3),
         "results": results,
     }
 
-def evaluate_answer(question: str, answer: str, context: str) -> dict:
+
+def evaluate_answer(
+    question: str,
+    answer: str,
+    context: str,
+) -> dict:
+    """
+    Evaluate the generated answer using the configured
+    evaluation LLM.
+
+    The application's generation model and the evaluation
+    model are conceptually separate.
+    """
+
     provider = get_llm_provider()
 
     evaluation_prompt = f"""
@@ -92,6 +150,14 @@ How directly does the answer address the user's question?
 How well is the answer supported by the provided context?
 Penalize unsupported claims or information not present in the context.
 
+Important rules:
+
+- Do not reward information that is not supported by the context.
+- Do not assume an answer is correct merely because it sounds plausible.
+- Penalize unsupported claims.
+- Penalize information that contradicts the context.
+- Keep the feedback short and specific.
+
 Return ONLY a valid JSON object.
 Do not use Markdown.
 Do not use code fences.
@@ -109,7 +175,7 @@ Use exactly this format:
 
     result = provider.generate(
         prompt=evaluation_prompt,
-        conversation_history=[]
+        conversation_history=[],
     )
 
     try:

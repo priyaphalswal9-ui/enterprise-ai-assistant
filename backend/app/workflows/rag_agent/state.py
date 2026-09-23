@@ -6,7 +6,10 @@ from sqlalchemy.orm import Session
 class AgentState(TypedDict):
     user_id: int
     conversation_id: int
+    document_id: int | None
+
     query: str
+    retrieval_query: str
     conversation_history: list
     db: Session
 

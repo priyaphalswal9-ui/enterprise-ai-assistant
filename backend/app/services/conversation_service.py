@@ -78,3 +78,25 @@ def delete_conversation(
     db.commit()
 
     return True
+
+def update_conversation_title(
+    db: Session,
+    conversation_id: int,
+    title: str,
+) -> Conversation | None:
+    conversation = (
+        db.query(Conversation)
+        .filter(
+            Conversation.id == conversation_id,
+        )
+        .first()
+    )
+
+    if not conversation:
+        return None
+
+    conversation.title = title
+    db.commit()
+    db.refresh(conversation)
+
+    return conversation

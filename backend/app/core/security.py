@@ -1,4 +1,13 @@
+from datetime import datetime, timedelta, timezone
+
+from jose import jwt
 from passlib.context import CryptContext
+
+from backend.app.core.config import (
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    ALGORITHM,
+    SECRET_KEY,
+)
 
 
 pwd_context = CryptContext(
@@ -11,18 +20,30 @@ def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
 
-def verify_password(password: str, password_hash: str) -> bool:
-    return pwd_context.verify(password, password_hash)
-
-from jose import jwt
-
-
-SECRET_KEY = "change-this-later"
-ALGORITHM = "HS256"
+def verify_password(
+    password: str,
+    password_hash: str,
+) -> bool:
+    return pwd_context.verify(
+        password,
+        password_hash,
+    )
 
 
 def create_access_token(data: dict) -> str:
     to_encode = data.copy()
+
+    expire = datetime.now(
+        timezone.utc
+    ) + timedelta(
+        minutes=ACCESS_TOKEN_EXPIRE_MINUTES
+    )
+
+    to_encode.update(
+        {
+            "exp": expire,
+        }
+    )
 
     return jwt.encode(
         to_encode,
@@ -41,5 +62,7 @@ def decode_access_token(token: str) -> dict:
 
         return payload
 
-    except Exception:
-        raise ValueError("Invalid or expired token")
+    except Exception as error:
+        raise ValueError(
+            "Invalid or expired token"
+        ) from error

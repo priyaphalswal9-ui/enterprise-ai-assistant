@@ -12,12 +12,15 @@ class AIService:
         conversation_history,
         user_id,
         db,
+        document_id=None,
     ) -> dict:
 
         initial_state = {
             "user_id": user_id,
             "conversation_id": 0,
+            "document_id": document_id,
             "query": prompt,
+            "retrieval_query": prompt,
             "conversation_history": conversation_history,
             "db": db,
             "intent": "",
@@ -30,11 +33,16 @@ class AIService:
             "streaming": False,
         }
 
-        result = agent_graph.invoke(initial_state)
+        result = agent_graph.invoke(
+            initial_state
+        )
 
         return {
             "answer": result["answer"],
-            "sources": result.get("sources", []),
+            "sources": result.get(
+                "sources",
+                [],
+            ),
         }
 
     def generate_response_stream(
@@ -43,11 +51,14 @@ class AIService:
         conversation_history,
         user_id,
         db,
+        document_id=None,
     ):
         initial_state = {
             "user_id": user_id,
             "conversation_id": 0,
+            "document_id": document_id,
             "query": prompt,
+            "retrieval_query": prompt,
             "conversation_history": conversation_history,
             "db": db,
             "intent": "",
@@ -62,9 +73,13 @@ class AIService:
 
         # LangGraph handles:
         # classification → retrieval/tools → prompt preparation
-        result = agent_graph.invoke(initial_state)
+        result = agent_graph.invoke(
+            initial_state
+        )
 
-        final_prompt = result.get("final_prompt")
+        final_prompt = result.get(
+            "final_prompt"
+        )
 
         if not final_prompt:
             raise RuntimeError(
@@ -73,13 +88,17 @@ class AIService:
 
         provider = get_llm_provider()
 
-        # Only the final LLM response is streamed token-by-token
+        # Only the final LLM response is streamed
+        # token-by-token.
         token_stream = provider.generate_stream(
             prompt=final_prompt,
             conversation_history=[],
         )
 
         return (
-            result.get("sources", []),
+            result.get(
+                "sources",
+                []
+            ),
             token_stream,
         )

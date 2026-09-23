@@ -26,6 +26,7 @@ import { uploadDocument } from "../services/documents";
 
 import "../styles/assistant.css";
 
+
 function Assistant() {
   const [conversations, setConversations] = useState([]);
   const [loadingConversations, setLoadingConversations] =
@@ -49,12 +50,19 @@ function Assistant() {
   const [deletingConversationId, setDeletingConversationId] =
     useState(null);
 
+  const [conversationSearch, setConversationSearch] =
+    useState("");
+
+  const [sendError, setSendError] = useState("");
+
   const fileInputRef = useRef(null);
+
 
   useEffect(() => {
     async function loadConversations() {
       try {
         const data = await getConversations();
+
         setConversations(data);
       } catch (error) {
         console.error(
@@ -68,6 +76,7 @@ function Assistant() {
 
     loadConversations();
   }, []);
+
 
   async function handleNewConversation() {
     try {
@@ -84,24 +93,37 @@ function Assistant() {
       setInput("");
       setAttachedFile(null);
       setOpenMenuId(null);
+      setConversationSearch("");
+      setSendError("");
     } catch (error) {
       console.error(
         "Failed to create conversation:",
         error
       );
+
+      alert(
+        error.message ||
+          "Failed to create conversation."
+      );
     }
   }
 
-  async function handleSelectConversation(conversationId) {
+
+  async function handleSelectConversation(
+    conversationId
+  ) {
     setSelectedConversationId(conversationId);
     setLoadingMessages(true);
     setSources([]);
     setAttachedFile(null);
     setOpenMenuId(null);
+    setSendError("");
 
     try {
       const data =
-        await getConversationMessages(conversationId);
+        await getConversationMessages(
+          conversationId
+        );
 
       setMessages(data);
     } catch (error) {
@@ -111,30 +133,46 @@ function Assistant() {
       );
 
       setMessages([]);
+
+      setSendError(
+        error.message ||
+          "Failed to load this conversation."
+      );
     } finally {
       setLoadingMessages(false);
     }
   }
 
-  async function handleDeleteConversation(conversation) {
+
+  async function handleDeleteConversation(
+    conversation
+  ) {
     setOpenMenuId(null);
 
     const confirmed = window.confirm(
-      `Delete "${conversation.title || "Untitled conversation"}"?\n\nThis will permanently delete the conversation and its messages.`
+      `Delete "${
+        conversation.title ||
+        "Untitled conversation"
+      }"?\n\nThis will permanently delete the conversation and its messages.`
     );
 
     if (!confirmed) {
       return;
     }
 
-    setDeletingConversationId(conversation.id);
+    setDeletingConversationId(
+      conversation.id
+    );
 
     try {
-      await deleteConversation(conversation.id);
+      await deleteConversation(
+        conversation.id
+      );
 
       setConversations((current) =>
         current.filter(
-          (item) => item.id !== conversation.id
+          (item) =>
+            item.id !== conversation.id
         )
       );
 
@@ -147,6 +185,7 @@ function Assistant() {
         setSources([]);
         setInput("");
         setAttachedFile(null);
+        setSendError("");
       }
     } catch (error) {
       console.error(
@@ -163,43 +202,51 @@ function Assistant() {
     }
   }
 
+
   function openFilePicker() {
-    if (uploadingFile) {
+    if (uploadingFile || sending) {
       return;
     }
 
     fileInputRef.current?.click();
   }
 
+
   async function handleFileChange(event) {
-    const file = event.target.files?.[0];
+    const file =
+      event.target.files?.[0];
 
     if (!file) {
       return;
     }
 
     setUploadingFile(true);
+    setSendError("");
 
     try {
       const uploadedDocument =
         await uploadDocument(file);
 
-      setAttachedFile(uploadedDocument);
+      setAttachedFile(
+        uploadedDocument
+      );
     } catch (error) {
       console.error(
         "Failed to upload document:",
         error
       );
 
-      alert(
+      setSendError(
         error.message ||
           "Failed to upload document."
       );
     } finally {
       setUploadingFile(false);
+
       event.target.value = "";
     }
   }
+
 
   async function handleSendMessage() {
     const content = input.trim();
@@ -216,12 +263,29 @@ function Assistant() {
       return;
     }
 
+    setSendError("");
+
+    /*
+     * The uploaded document becomes the scope
+     * for this message.
+     *
+     * The fallback to document_id keeps this
+     * compatible with either possible API response
+     * shape.
+     */
+    const documentId =
+      attachedFile?.id ??
+      attachedFile?.document_id ??
+      null;
+
     const userMessage = {
       id: `temp-user-${Date.now()}`,
-      conversation_id: selectedConversationId,
+      conversation_id:
+        selectedConversationId,
       role: "user",
       content,
-      created_at: new Date().toISOString(),
+      created_at:
+        new Date().toISOString(),
     };
 
     const assistantMessageId =
@@ -229,10 +293,12 @@ function Assistant() {
 
     const assistantMessage = {
       id: assistantMessageId,
-      conversation_id: selectedConversationId,
+      conversation_id:
+        selectedConversationId,
       role: "assistant",
       content: "",
-      created_at: new Date().toISOString(),
+      created_at:
+        new Date().toISOString(),
     };
 
     setMessages((current) => [
@@ -249,23 +315,30 @@ function Assistant() {
       await streamConversationMessage(
         selectedConversationId,
         content,
+        documentId,
         {
           onToken: (token) => {
             setMessages((current) =>
               current.map((message) =>
-                message.id === assistantMessageId
+                message.id ===
+                assistantMessageId
                   ? {
                       ...message,
                       content:
-                        message.content + token,
+                        message.content +
+                        token,
                     }
                   : message
               )
             );
           },
 
-          onSources: (receivedSources) => {
-            setSources(receivedSources);
+          onSources: (
+            receivedSources
+          ) => {
+            setSources(
+              receivedSources
+            );
           },
 
           onDone: () => {},
@@ -277,7 +350,22 @@ function Assistant() {
           selectedConversationId
         );
 
-      setMessages(updatedMessages);
+      setMessages(
+        updatedMessages
+      );
+
+      const updatedConversations =
+        await getConversations();
+
+      setConversations(
+        updatedConversations
+      );
+
+      /*
+       * The document was only needed for
+       * this message. Clear the attachment
+       * after successful completion.
+       */
       setAttachedFile(null);
     } catch (error) {
       console.error(
@@ -287,28 +375,42 @@ function Assistant() {
 
       setMessages((current) =>
         current.map((message) =>
-          message.id === assistantMessageId
+          message.id ===
+          assistantMessageId
             ? {
                 ...message,
-                content:
-                  "Sorry, something went wrong while generating the response.",
+                content: "",
               }
             : message
         )
+      );
+
+      setSendError(
+        error.message ||
+          "Something went wrong while generating the response."
       );
     } finally {
       setSending(false);
     }
   }
 
+
   function handleInputKeyDown(event) {
-    if (event.key === "Enter" && !event.shiftKey) {
+    if (
+      event.key === "Enter" &&
+      !event.shiftKey
+    ) {
       event.preventDefault();
+
       handleSendMessage();
     }
   }
 
-  function getSourceTitle(source, index) {
+
+  function getSourceTitle(
+    source,
+    index
+  ) {
     return (
       source.title ||
       source.document_name ||
@@ -318,6 +420,7 @@ function Assistant() {
       `Source ${index + 1}`
     );
   }
+
 
   function getSourceText(source) {
     return (
@@ -329,38 +432,66 @@ function Assistant() {
     );
   }
 
-  const uniqueSources = sources.filter(
-    (source, index, array) => {
-      const currentTitle = getSourceTitle(
-        source,
-        index
-      );
 
-      return (
-        array.findIndex(
-          (item, itemIndex) =>
-            getSourceTitle(
+  const filteredConversations =
+    conversations.filter(
+      (conversation) => {
+        const title =
+          conversation.title ||
+          "Untitled conversation";
+
+        return title
+          .toLowerCase()
+          .includes(
+            conversationSearch.toLowerCase()
+          );
+      }
+    );
+
+
+  const uniqueSources =
+    sources.filter(
+      (source, index, array) => {
+        const currentTitle =
+          getSourceTitle(
+            source,
+            index
+          );
+
+        return (
+          array.findIndex(
+            (
               item,
               itemIndex
-            ) === currentTitle
-        ) === index
-      );
-    }
-  );
+            ) =>
+              getSourceTitle(
+                item,
+                itemIndex
+              ) === currentTitle
+          ) === index
+        );
+      }
+    );
+
 
   return (
     <div className="assistant-page">
       <aside className="conversation-panel">
         <div className="conversation-header">
           <div>
-            <p className="eyebrow">CONVERSATIONS</p>
+            <p className="eyebrow">
+              CONVERSATIONS
+            </p>
+
             <h1>Assistant</h1>
           </div>
 
           <button
             className="new-conversation-button"
             type="button"
-            onClick={handleNewConversation}
+            onClick={
+              handleNewConversation
+            }
           >
             <Plus
               size={19}
@@ -368,6 +499,7 @@ function Assistant() {
             />
           </button>
         </div>
+
 
         <div className="conversation-search">
           <Search
@@ -378,129 +510,179 @@ function Assistant() {
           <input
             type="text"
             placeholder="Search conversations"
+            value={
+              conversationSearch
+            }
+            onChange={(event) =>
+              setConversationSearch(
+                event.target.value
+              )
+            }
           />
         </div>
 
+
         {loadingConversations ? (
           <div className="conversation-empty">
-            <p>Loading conversations...</p>
+            <p>
+              Loading conversations...
+            </p>
           </div>
-        ) : conversations.length === 0 ? (
+        ) : conversations.length ===
+          0 ? (
           <div className="conversation-empty">
             <MessageSquare
               size={22}
               strokeWidth={1.5}
             />
 
-            <h2>No conversations yet</h2>
+            <h2>
+              No conversations yet
+            </h2>
 
             <p>
-              Start a new conversation with Nexora.
+              Start a new conversation
+              with Nexora.
             </p>
 
             <button
               type="button"
               className="start-button"
-              onClick={handleNewConversation}
+              onClick={
+                handleNewConversation
+              }
             >
               Start conversation
             </button>
           </div>
+        ) : filteredConversations.length ===
+          0 ? (
+          <div className="conversation-empty">
+            <Search
+              size={22}
+              strokeWidth={1.5}
+            />
+
+            <h2>
+              No matching
+              conversations
+            </h2>
+
+            <p>
+              Try a different search
+              term.
+            </p>
+          </div>
         ) : (
           <div className="conversation-list">
-            {conversations.map((conversation) => (
-              <div
-                key={conversation.id}
-                className={`conversation-item-wrapper ${
-                  selectedConversationId ===
-                  conversation.id
-                    ? "active"
-                    : ""
-                }`}
-              >
-                <button
-                  type="button"
-                  className="conversation-item"
-                  onClick={() =>
-                    handleSelectConversation(
-                      conversation.id
-                    )
-                  }
-                >
-                  <MessageSquare
-                    size={16}
-                    strokeWidth={1.6}
-                  />
-
-                  <span>
-                    {conversation.title ||
-                      "Untitled conversation"}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  className="conversation-menu-button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-
-                    setOpenMenuId((current) =>
-                      current === conversation.id
-                        ? null
-                        : conversation.id
-                    );
-                  }}
-                  disabled={
-                    deletingConversationId ===
+            {filteredConversations.map(
+              (conversation) => (
+                <div
+                  key={
                     conversation.id
                   }
-                  aria-label={`Actions for ${
-                    conversation.title ||
-                    "conversation"
+                  className={`conversation-item-wrapper ${
+                    selectedConversationId ===
+                    conversation.id
+                      ? "active"
+                      : ""
                   }`}
                 >
-                  <MoreHorizontal
-                    size={16}
-                    strokeWidth={1.7}
-                  />
-                </button>
+                  <button
+                    type="button"
+                    className="conversation-item"
+                    onClick={() =>
+                      handleSelectConversation(
+                        conversation.id
+                      )
+                    }
+                  >
+                    <MessageSquare
+                      size={16}
+                      strokeWidth={1.6}
+                    />
 
-                {openMenuId ===
-                  conversation.id && (
-                  <div className="conversation-menu-dropdown">
-                    <button
-                      type="button"
-                      className="conversation-delete-action"
-                      onClick={() =>
-                        handleDeleteConversation(
-                          conversation
-                        )
-                      }
-                    >
-                      <Trash2
-                        size={14}
-                        strokeWidth={1.7}
-                      />
+                    <span>
+                      {conversation.title ||
+                        "Untitled conversation"}
+                    </span>
+                  </button>
 
-                      <span>
-                        Delete conversation
-                      </span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
+
+                  <button
+                    type="button"
+                    className="conversation-menu-button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+
+                      setOpenMenuId(
+                        (current) =>
+                          current ===
+                          conversation.id
+                            ? null
+                            : conversation.id
+                      );
+                    }}
+                    disabled={
+                      deletingConversationId ===
+                      conversation.id
+                    }
+                    aria-label={`Actions for ${
+                      conversation.title ||
+                      "conversation"
+                    }`}
+                  >
+                    <MoreHorizontal
+                      size={16}
+                      strokeWidth={1.7}
+                    />
+                  </button>
+
+
+                  {openMenuId ===
+                    conversation.id && (
+                    <div className="conversation-menu-dropdown">
+                      <button
+                        type="button"
+                        className="conversation-delete-action"
+                        onClick={() =>
+                          handleDeleteConversation(
+                            conversation
+                          )
+                        }
+                      >
+                        <Trash2
+                          size={14}
+                          strokeWidth={1.7}
+                        />
+
+                        <span>
+                          Delete conversation
+                        </span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
+            )}
           </div>
         )}
       </aside>
 
+
       <main className="chat-panel">
         <div className="chat-header">
           <div>
-            <p className="eyebrow">NEXORA AI</p>
-            <h2>AI Assistant</h2>
+            <p className="eyebrow">
+              NEXORA AI
+            </p>
+
+            <h2>
+              AI Assistant
+            </h2>
           </div>
         </div>
+
 
         <div className="chat-content">
           {!selectedConversationId ? (
@@ -516,64 +698,99 @@ function Assistant() {
               </h1>
 
               <p>
-                Ask questions, explore your
-                organization's knowledge, or work
-                through a task with Nexora.
+                Ask questions, explore
+                your organization's
+                knowledge, or work
+                through a task with
+                Nexora.
               </p>
             </div>
           ) : loadingMessages ? (
             <div className="chat-welcome">
-              <p>Loading conversation...</p>
+              <p>
+                Loading conversation...
+              </p>
             </div>
-          ) : messages.length === 0 ? (
+          ) : messages.length ===
+            0 ? (
             <div className="chat-welcome">
               <div className="welcome-mark">
                 N
               </div>
 
-              <h1>Start a conversation</h1>
+              <h1>
+                Start a conversation
+              </h1>
 
               <p>
-                Ask Nexora something about your
-                organization's knowledge.
+                Ask Nexora something
+                about your
+                organization's
+                knowledge.
               </p>
             </div>
           ) : (
             <div className="message-list">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`chat-message ${
-                    message.role === "user"
-                      ? "user-message"
-                      : "assistant-message"
-                  }`}
-                >
-                  <div className="message-role">
-                    {message.role === "user"
-                      ? "You"
-                      : "Nexora"}
-                  </div>
+              {messages.map(
+                (message) => (
+                  <div
+                    key={message.id}
+                    className={`chat-message ${
+                      message.role ===
+                      "user"
+                        ? "user-message"
+                        : "assistant-message"
+                    }`}
+                  >
+                    <div className="message-role">
+                      <span>
+                        {message.role ===
+                        "user"
+                          ? "You"
+                          : "Nexora"}
+                      </span>
+                    </div>
 
-                  <div className="message-content">
-                    {message.content}
+                    <div className="message-content">
+                      {
+                        message.content
+                      }
+                    </div>
                   </div>
+                )
+              )}
+
+
+              {sending && (
+                <div className="message-status">
+                  <span className="status-dot" />
+                  Nexora is responding
                 </div>
-              ))}
+              )}
 
-              {uniqueSources.length > 0 && (
+
+              {uniqueSources.length >
+                0 && (
                 <div className="sources-section">
                   <div className="sources-header">
                     <FileText
                       size={15}
-                      strokeWidth={1.7}
+                      strokeWidth={
+                        1.7
+                      }
                     />
-                    <span>Sources</span>
+
+                    <span>
+                      Sources used
+                    </span>
                   </div>
 
                   <div className="sources-list">
                     {uniqueSources.map(
-                      (source, index) => (
+                      (
+                        source,
+                        index
+                      ) => (
                         <div
                           className="source-card"
                           key={
@@ -588,7 +805,9 @@ function Assistant() {
                           <div className="source-icon">
                             <FileText
                               size={15}
-                              strokeWidth={1.6}
+                              strokeWidth={
+                                1.6
+                              }
                             />
                           </div>
 
@@ -600,7 +819,9 @@ function Assistant() {
                               )}
                             </p>
 
-                            {getSourceText(source) && (
+                            {getSourceText(
+                              source
+                            ) && (
                               <p className="source-preview">
                                 {getSourceText(
                                   source
@@ -615,14 +836,29 @@ function Assistant() {
                 </div>
               )}
 
-              {sending && (
-                <div className="message-status">
-                  Nexora is responding...
+
+              {sendError && (
+                <div className="message-error">
+                  <span>
+                    {sendError}
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSendError(
+                        ""
+                      )
+                    }
+                  >
+                    Dismiss
+                  </button>
                 </div>
               )}
             </div>
           )}
         </div>
+
 
         <div className="chat-composer">
           {attachedFile && (
@@ -635,6 +871,7 @@ function Assistant() {
 
                 <span>
                   {attachedFile.filename ||
+                    attachedFile.file_name ||
                     "Document added"}
                 </span>
 
@@ -646,6 +883,7 @@ function Assistant() {
             </div>
           )}
 
+
           <div className="composer-input">
             <textarea
               placeholder={
@@ -656,9 +894,13 @@ function Assistant() {
               rows={1}
               value={input}
               onChange={(event) =>
-                setInput(event.target.value)
+                setInput(
+                  event.target.value
+                )
               }
-              onKeyDown={handleInputKeyDown}
+              onKeyDown={
+                handleInputKeyDown
+              }
               disabled={
                 !selectedConversationId ||
                 sending ||
@@ -666,18 +908,24 @@ function Assistant() {
               }
             />
 
+
             <div className="composer-actions">
               <input
                 ref={fileInputRef}
                 type="file"
                 hidden
-                onChange={handleFileChange}
+                onChange={
+                  handleFileChange
+                }
               />
+
 
               <button
                 type="button"
                 className="composer-icon"
-                onClick={openFilePicker}
+                onClick={
+                  openFilePicker
+                }
                 disabled={
                   uploadingFile ||
                   sending ||
@@ -691,10 +939,13 @@ function Assistant() {
                 />
               </button>
 
+
               <button
                 type="button"
                 className="send-button"
-                onClick={handleSendMessage}
+                onClick={
+                  handleSendMessage
+                }
                 disabled={
                   !selectedConversationId ||
                   !input.trim() ||
@@ -710,6 +961,7 @@ function Assistant() {
             </div>
           </div>
 
+
           <p className="composer-note">
             {uploadingFile
               ? "Adding document to your knowledge..."
@@ -722,5 +974,6 @@ function Assistant() {
     </div>
   );
 }
+
 
 export default Assistant;
