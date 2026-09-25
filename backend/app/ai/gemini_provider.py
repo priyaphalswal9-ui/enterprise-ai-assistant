@@ -64,11 +64,22 @@ class GeminiProvider(BaseLLMProvider):
         )
 
         for event in stream:
-            if getattr(event, "type", None) == "content.delta":
-                text = getattr(event.delta, "text", None)
 
-                if text:
-                    yield text
+            if (
+                getattr(event, "event_type", None)
+                == "step.delta"
+            ):
+                delta = getattr(event, "delta", None)
+
+                if (
+                    delta
+                    and getattr(delta, "type", None)
+                    == "text"
+                ):
+                    text = getattr(delta, "text", None)
+
+                    if text:
+                        yield text
 
     def generate_with_tools(
         self,
