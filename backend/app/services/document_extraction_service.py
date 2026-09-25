@@ -1,70 +1,71 @@
 from pathlib import Path
 
-from pypdf import PdfReader
-from docx import Document as DocxDocument
+from docx import Document
+from PyPDF2 import PdfReader
 
 
-def extract_text_from_pdf(file_path: str) -> str:
-    reader = PdfReader(file_path)
+def extract_text(file_path: str, file_type: str) -> str:
+    path = Path(file_path)
+    extension = path.suffix.lower()
 
-    pages = []
+    # PDF
+    if extension == ".pdf" or file_type == "application/pdf":
+        reader = PdfReader(file_path)
 
-    for page in reader.pages:
-        text = page.extract_text(
-            extraction_mode="layout"
-        )
+        text_parts = []
 
-        if text:
-            pages.append(text)
+        for page in reader.pages:
+            page_text = page.extract_text()
 
-    return "\n\n".join(pages)
+            if page_text:
+                text_parts.append(page_text)
 
+        return "\n".join(text_parts)
 
-def extract_text_from_txt(file_path: str) -> str:
-    with open(
-        file_path,
-        "r",
-        encoding="utf-8",
-    ) as file:
-        return file.read()
+    # DOCX
+    if (
+        extension == ".docx"
+        or file_type
+        == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ):
+        document = Document(file_path)
 
+        text_parts = [
+            paragraph.text
+            for paragraph in document.paragraphs
+            if paragraph.text.strip()
+        ]
 
-def extract_text_from_docx(file_path: str) -> str:
-    document = DocxDocument(file_path)
+        return "\n".join(text_parts)
 
-    extracted_text = []
+    # Plain-text/code files
+    text_extensions = {
+        ".txt",
+        ".csv",
+        ".json",
+        ".md",
+        ".py",
+        ".js",
+        ".jsx",
+        ".ts",
+        ".tsx",
+        ".html",
+        ".css",
+        ".r",
+        ".java",
+        ".cpp",
+        ".c",
+        ".h",
+        ".sql",
+        ".xml",
+        ".yaml",
+        ".yml",
+    }
 
-    for paragraph in document.paragraphs:
-        text = paragraph.text.strip()
-
-        if text:
-            extracted_text.append(text)
-
-    return "\n".join(extracted_text)
-
-
-def extract_text(
-    file_path: str,
-    file_type: str,
-) -> str:
-
-    extension = Path(
-        file_path
-    ).suffix.lower()
-
-    if extension == ".pdf":
-        return extract_text_from_pdf(
-            file_path
-        )
-
-    if extension == ".txt":
-        return extract_text_from_txt(
-            file_path
-        )
-
-    if extension == ".docx":
-        return extract_text_from_docx(
-            file_path
+    if extension in text_extensions or file_type.startswith("text/"):
+        return path.read_text(
+            encoding="utf-8",
+            errors="ignore",
         )
 
     raise ValueError(

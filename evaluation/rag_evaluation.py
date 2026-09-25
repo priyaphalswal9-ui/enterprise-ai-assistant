@@ -3,7 +3,7 @@ from pprint import pprint
 from backend.app.services.evaluation_service import evaluate_rag
 
 
-USER_ID = 1
+USER_ID = 3
 K = 3
 
 

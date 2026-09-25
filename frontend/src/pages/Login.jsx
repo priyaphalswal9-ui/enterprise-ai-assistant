@@ -1,9 +1,7 @@
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 
-import { loginUser } from "../services/auth";
-import { useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
 
 import "../styles/auth.css";
@@ -25,16 +23,7 @@ function Login() {
     setLoading(true);
 
     try {
-      const data = await loginUser(email, password);
-
-      const currentUser = {
-        id: data.user?.id,
-        email: data.user?.email,
-        role: data.user?.role,
-      };
-
-      login(currentUser);
-
+      await login(email, password);
       navigate("/dashboard");
     } catch (error) {
       setError(error.message);
@@ -47,6 +36,7 @@ function Login() {
     <div className="auth-page">
       <div className="auth-brand">
         <div className="brand-name">NEXORA</div>
+
         <p>AI KNOWLEDGE & WORKFLOW ASSISTANT</p>
       </div>
 
@@ -62,14 +52,19 @@ function Login() {
           </p>
         </div>
 
-        <form className="auth-form" onSubmit={handleSubmit}>
+        <form
+          className="auth-form"
+          onSubmit={handleSubmit}
+        >
           <label>
             Email
 
             <input
               type="email"
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              onChange={(event) =>
+                setEmail(event.target.value)
+              }
               placeholder="you@organization.com"
               required
             />
@@ -81,7 +76,9 @@ function Login() {
             <input
               type="password"
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              onChange={(event) =>
+                setPassword(event.target.value)
+              }
               placeholder="Enter your password"
               required
             />
@@ -101,14 +98,19 @@ function Login() {
             {loading ? "Signing in..." : "Sign in"}
 
             {!loading && (
-              <ArrowRight size={16} strokeWidth={1.8} />
+              <ArrowRight
+                size={16}
+                strokeWidth={1.8}
+              />
             )}
           </button>
         </form>
 
         <p className="auth-switch">
           Don't have an account?{" "}
-          <Link to="/register">Create one</Link>
+          <Link to="/register">
+            Create one
+          </Link>
         </p>
       </main>
     </div>

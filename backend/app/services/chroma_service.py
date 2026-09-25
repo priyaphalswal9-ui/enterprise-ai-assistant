@@ -1,17 +1,63 @@
-import chromadb
+import uuid
 
-from backend.app.services.embedding_service import (
-    generate_embedding,
+from qdrant_client import QdrantClient
+from qdrant_client.http import models
+
+from backend.app.core.config import (
+    QDRANT_API_KEY,
+    QDRANT_COLLECTION_NAME,
+    QDRANT_URL,
+)
+from backend.app.services.embedding_service import generate_embedding
+
+
+client = QdrantClient(
+    url=QDRANT_URL,
+    api_key=QDRANT_API_KEY,
 )
 
 
-client = chromadb.PersistentClient(
-    path="./chroma_db"
-)
+def _point_id(chunk_id: str) -> str:
+    return str(
+        uuid.uuid5(
+            uuid.NAMESPACE_URL,
+            chunk_id,
+        )
+    )
 
-collection = client.get_or_create_collection(
-    name="documents"
-)
+
+def _ensure_payload_indexes():
+    """
+    Create payload indexes required for filtered retrieval.
+    Safe to call repeatedly because Qdrant keeps the existing index.
+    """
+
+    client.create_payload_index(
+        collection_name=QDRANT_COLLECTION_NAME,
+        field_name="user_id",
+        field_schema=models.PayloadSchemaType.INTEGER,
+    )
+
+    client.create_payload_index(
+        collection_name=QDRANT_COLLECTION_NAME,
+        field_name="document_id",
+        field_schema=models.PayloadSchemaType.INTEGER,
+    )
+
+
+def _ensure_collection(vector_size: int):
+    if not client.collection_exists(
+        QDRANT_COLLECTION_NAME
+    ):
+        client.create_collection(
+            collection_name=QDRANT_COLLECTION_NAME,
+            vectors_config=models.VectorParams(
+                size=vector_size,
+                distance=models.Distance.COSINE,
+            ),
+        )
+
+    _ensure_payload_indexes()
 
 
 def add_document_chunk(
@@ -23,16 +69,23 @@ def add_document_chunk(
 ):
     embedding = generate_embedding(text)
 
-    collection.add(
-        ids=[chunk_id],
-        embeddings=[embedding],
-        documents=[text],
-        metadatas=[
-            {
-                "document_id": document_id,
-                "chunk_index": chunk_index,
-                "user_id": user_id,
-            }
+    _ensure_collection(
+        vector_size=len(embedding)
+    )
+
+    client.upsert(
+        collection_name=QDRANT_COLLECTION_NAME,
+        points=[
+            models.PointStruct(
+                id=_point_id(chunk_id),
+                vector=embedding,
+                payload={
+                    "text": text,
+                    "document_id": document_id,
+                    "chunk_index": chunk_index,
+                    "user_id": user_id,
+                },
+            )
         ],
     )
 
@@ -45,61 +98,102 @@ def search_similar_chunks(
 ):
     query_embedding = generate_embedding(query)
 
-    filters = []
+    _ensure_collection(
+        vector_size=len(query_embedding)
+    )
+
+    conditions = []
 
     if user_id is not None:
-        filters.append(
-            {"user_id": user_id}
+        conditions.append(
+            models.FieldCondition(
+                key="user_id",
+                match=models.MatchValue(
+                    value=user_id,
+                ),
+            )
         )
 
     if document_id is not None:
-        filters.append(
-            {"document_id": document_id}
+        conditions.append(
+            models.FieldCondition(
+                key="document_id",
+                match=models.MatchValue(
+                    value=document_id,
+                ),
+            )
         )
 
-    if len(filters) == 1:
-        where = filters[0]
+    query_filter = None
 
-    elif len(filters) > 1:
-        where = {
-            "$and": filters
-        }
+    if conditions:
+        query_filter = models.Filter(
+            must=conditions,
+        )
 
-    else:
-        where = None
+    results = client.query_points(
+        collection_name=QDRANT_COLLECTION_NAME,
+        query=query_embedding,
+        query_filter=query_filter,
+        limit=n_results,
+        with_payload=True,
+        with_vectors=True,
+    ).points
 
-    query_kwargs = {
-        "query_embeddings": [query_embedding],
-        "n_results": n_results,
-        "include": [
-            "documents",
-            "metadatas",
-            "distances",
-            "embeddings",
-        ],
+    return {
+        "ids": [[
+            str(point.id)
+            for point in results
+        ]],
+        "documents": [[
+            point.payload.get("text", "")
+            for point in results
+        ]],
+        "metadatas": [[
+            {
+                "document_id": point.payload.get(
+                    "document_id"
+                ),
+                "chunk_index": point.payload.get(
+                    "chunk_index"
+                ),
+                "user_id": point.payload.get(
+                    "user_id"
+                ),
+            }
+            for point in results
+        ]],
+        "distances": [[
+            1 - point.score
+            for point in results
+        ]],
+        "embeddings": [[
+            point.vector
+            for point in results
+        ]],
     }
 
-    if where is not None:
-        query_kwargs["where"] = where
 
-    return collection.query(
-        **query_kwargs
-    )
 def delete_document_chunks(
     document_id: int,
 ):
-    results = collection.get(
-        where={
-            "document_id": document_id
-        }
-    )
+    if not client.collection_exists(
+        QDRANT_COLLECTION_NAME
+    ):
+        return
 
-    ids = results.get(
-        "ids",
-        []
+    client.delete(
+        collection_name=QDRANT_COLLECTION_NAME,
+        points_selector=models.FilterSelector(
+            filter=models.Filter(
+                must=[
+                    models.FieldCondition(
+                        key="document_id",
+                        match=models.MatchValue(
+                            value=document_id,
+                        ),
+                    )
+                ]
+            )
+        ),
     )
-
-    if ids:
-        collection.delete(
-            ids=ids
-        )

@@ -1,6 +1,7 @@
 import { createContext, useEffect, useState } from "react";
 import {
   getCurrentUser,
+  loginUser,
   logoutUser,
 } from "../services/auth";
 
@@ -21,7 +22,7 @@ function AuthProvider({ children }) {
 
       try {
         const currentUser = await getCurrentUser();
-          setUser(currentUser.user);
+        setUser(currentUser.user);
       } catch {
         logoutUser();
         setUser(null);
@@ -33,8 +34,11 @@ function AuthProvider({ children }) {
     loadUser();
   }, []);
 
-  function handleLogin(userData) {
-    setUser(userData);
+  async function handleLogin(email, password) {
+    await loginUser(email, password);
+
+    const currentUser = await getCurrentUser();
+    setUser(currentUser.user);
   }
 
   function handleLogout() {
