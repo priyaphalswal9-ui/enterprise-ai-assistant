@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+
 import {
   MessageSquare,
   Plus,
@@ -62,7 +64,6 @@ function Assistant() {
     async function loadConversations() {
       try {
         const data = await getConversations();
-
         setConversations(data);
       } catch (error) {
         console.error(
@@ -242,7 +243,6 @@ function Assistant() {
       );
     } finally {
       setUploadingFile(false);
-
       event.target.value = "";
     }
   }
@@ -265,14 +265,6 @@ function Assistant() {
 
     setSendError("");
 
-    /*
-     * The uploaded document becomes the scope
-     * for this message.
-     *
-     * The fallback to document_id keeps this
-     * compatible with either possible API response
-     * shape.
-     */
     const documentId =
       attachedFile?.id ??
       attachedFile?.document_id ??
@@ -361,11 +353,6 @@ function Assistant() {
         updatedConversations
       );
 
-      /*
-       * The document was only needed for
-       * this message. Clear the attachment
-       * after successful completion.
-       */
       setAttachedFile(null);
     } catch (error) {
       console.error(
@@ -401,7 +388,6 @@ function Assistant() {
       !event.shiftKey
     ) {
       event.preventDefault();
-
       handleSendMessage();
     }
   }
@@ -430,6 +416,21 @@ function Assistant() {
       source.snippet ||
       ""
     );
+  }
+
+
+  /*
+   * The backend may return escaped markdown
+   * in some responses. Only normalize escaped
+   * asterisks so markdown such as **bold**
+   * can render correctly.
+   */
+  function normalizeMarkdown(content) {
+    if (!content) {
+      return "";
+    }
+
+    return content.replace(/\\\*/g, "*");
   }
 
 
@@ -476,6 +477,7 @@ function Assistant() {
 
   return (
     <div className="assistant-page">
+
       <aside className="conversation-panel">
         <div className="conversation-header">
           <div>
@@ -492,6 +494,7 @@ function Assistant() {
             onClick={
               handleNewConversation
             }
+            aria-label="New conversation"
           >
             <Plus
               size={19}
@@ -671,6 +674,7 @@ function Assistant() {
 
 
       <main className="chat-panel">
+
         <div className="chat-header">
           <div>
             <p className="eyebrow">
@@ -685,6 +689,7 @@ function Assistant() {
 
 
         <div className="chat-content">
+
           {!selectedConversationId ? (
             <div className="chat-welcome">
               <div className="welcome-mark">
@@ -705,14 +710,18 @@ function Assistant() {
                 Nexora.
               </p>
             </div>
+
           ) : loadingMessages ? (
+
             <div className="chat-welcome">
               <p>
                 Loading conversation...
               </p>
             </div>
+
           ) : messages.length ===
             0 ? (
+
             <div className="chat-welcome">
               <div className="welcome-mark">
                 N
@@ -729,8 +738,11 @@ function Assistant() {
                 knowledge.
               </p>
             </div>
+
           ) : (
+
             <div className="message-list">
+
               {messages.map(
                 (message) => (
                   <div
@@ -742,6 +754,7 @@ function Assistant() {
                         : "assistant-message"
                     }`}
                   >
+
                     <div className="message-role">
                       <span>
                         {message.role ===
@@ -751,11 +764,121 @@ function Assistant() {
                       </span>
                     </div>
 
+
                     <div className="message-content">
-                      {
-                        message.content
-                      }
+
+                      {message.role ===
+                      "assistant" ? (
+                        <ReactMarkdown
+                          components={{
+                            p: ({
+                              children,
+                            }) => (
+                              <p>
+                                {children}
+                              </p>
+                            ),
+
+                            strong: ({
+                              children,
+                            }) => (
+                              <strong>
+                                {children}
+                              </strong>
+                            ),
+
+                            em: ({
+                              children,
+                            }) => (
+                              <em>
+                                {children}
+                              </em>
+                            ),
+
+                            ul: ({
+                              children,
+                            }) => (
+                              <ul>
+                                {children}
+                              </ul>
+                            ),
+
+                            ol: ({
+                              children,
+                            }) => (
+                              <ol>
+                                {children}
+                              </ol>
+                            ),
+
+                            li: ({
+                              children,
+                            }) => (
+                              <li>
+                                {children}
+                              </li>
+                            ),
+
+                            blockquote: ({
+                              children,
+                            }) => (
+                              <blockquote>
+                                {children}
+                              </blockquote>
+                            ),
+
+                            code: ({
+                              className,
+                              children,
+                            }) => {
+                              const isBlock =
+                                Boolean(
+                                  className
+                                );
+
+                              if (
+                                isBlock
+                              ) {
+                                return (
+                                  <pre className="markdown-code-block">
+                                    <code
+                                      className={
+                                        className
+                                      }
+                                    >
+                                      {
+                                        children
+                                      }
+                                    </code>
+                                  </pre>
+                                );
+                              }
+
+                              return (
+                                <code className="markdown-inline-code">
+                                  {
+                                    children
+                                  }
+                                </code>
+                              );
+                            },
+                          }}
+                        >
+                          {normalizeMarkdown(
+                            message.content
+                          )}
+                        </ReactMarkdown>
+
+                      ) : (
+
+                        <p>
+                          {message.content}
+                        </p>
+
+                      )}
+
                     </div>
+
                   </div>
                 )
               )}
@@ -772,12 +895,11 @@ function Assistant() {
               {uniqueSources.length >
                 0 && (
                 <div className="sources-section">
+
                   <div className="sources-header">
                     <FileText
                       size={15}
-                      strokeWidth={
-                        1.7
-                      }
+                      strokeWidth={1.7}
                     />
 
                     <span>
@@ -785,7 +907,9 @@ function Assistant() {
                     </span>
                   </div>
 
+
                   <div className="sources-list">
+
                     {uniqueSources.map(
                       (
                         source,
@@ -802,22 +926,24 @@ function Assistant() {
                             )
                           }
                         >
+
                           <div className="source-icon">
                             <FileText
                               size={15}
-                              strokeWidth={
-                                1.6
-                              }
+                              strokeWidth={1.6}
                             />
                           </div>
 
+
                           <div className="source-info">
+
                             <p className="source-title">
                               {getSourceTitle(
                                 source,
                                 index
                               )}
                             </p>
+
 
                             {getSourceText(
                               source
@@ -828,11 +954,15 @@ function Assistant() {
                                 )}
                               </p>
                             )}
+
                           </div>
+
                         </div>
                       )
                     )}
+
                   </div>
+
                 </div>
               )}
 
@@ -855,15 +985,19 @@ function Assistant() {
                   </button>
                 </div>
               )}
+
             </div>
           )}
+
         </div>
 
 
         <div className="chat-composer">
+
           {attachedFile && (
             <div className="attached-file">
               <div className="attached-file-info">
+
                 <FileText
                   size={15}
                   strokeWidth={1.7}
@@ -879,12 +1013,14 @@ function Assistant() {
                   size={14}
                   strokeWidth={2}
                 />
+
               </div>
             </div>
           )}
 
 
           <div className="composer-input">
+
             <textarea
               placeholder={
                 selectedConversationId
@@ -910,6 +1046,7 @@ function Assistant() {
 
 
             <div className="composer-actions">
+
               <input
                 ref={fileInputRef}
                 type="file"
@@ -932,6 +1069,7 @@ function Assistant() {
                   !selectedConversationId
                 }
                 title="Add document"
+                aria-label="Add document"
               >
                 <Paperclip
                   size={18}
@@ -952,13 +1090,16 @@ function Assistant() {
                   sending ||
                   uploadingFile
                 }
+                aria-label="Send message"
               >
                 <ArrowUp
                   size={18}
                   strokeWidth={1.8}
                 />
               </button>
+
             </div>
+
           </div>
 
 
@@ -969,8 +1110,11 @@ function Assistant() {
                 ? "Document added to your knowledge. Ask Nexora about it."
                 : "Nexora can use your organization's available knowledge to answer."}
           </p>
+
         </div>
+
       </main>
+
     </div>
   );
 }

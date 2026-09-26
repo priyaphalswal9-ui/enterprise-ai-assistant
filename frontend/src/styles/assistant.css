@@ -1,11 +1,11 @@
-/* =========================
-   ASSISTANT
-   ========================= */
+ /* =========================
+    ASSISTANT
+    ========================= */
 
 .assistant-page {
   width: 100%;
   height: calc(100vh - 96px);
-  max-width: 1500px;
+  max-width: 1540px;
   margin: 0 auto;
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr);
@@ -128,7 +128,7 @@
 }
 
 .conversation-item:hover,
-.conversation-item.active {
+.conversation-item-wrapper.active .conversation-item {
   background: var(--bg);
 }
 
@@ -287,7 +287,7 @@
 
 .chat-header {
   flex-shrink: 0;
-  padding: 24px 48px 20px;
+  padding: 24px 54px 20px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -311,9 +311,9 @@
 
 .chat-welcome {
   width: 100%;
-  max-width: 1100px;
+  max-width: 1180px;
   margin: auto;
-  padding: 56px 60px;
+  padding: 56px 56px;
 }
 
 .welcome-mark {
@@ -352,9 +352,9 @@
 
 .message-list {
   width: 100%;
-  max-width: 1100px;
+  max-width: 1180px;
   margin: 0 auto;
-  padding: 38px 60px 44px;
+  padding: 38px 56px 48px;
   display: flex;
   flex-direction: column;
   gap: 28px;
@@ -385,12 +385,71 @@
 }
 
 .message-content {
-  max-width: 1000px;
+  max-width: 1080px;
   color: var(--text);
   font-size: 14px;
   line-height: 1.75;
-  white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+/* Markdown spacing */
+
+.message-content p {
+  margin: 0 0 12px;
+}
+
+.message-content p:last-child {
+  margin-bottom: 0;
+}
+
+.message-content strong {
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.message-content em {
+  font-style: italic;
+}
+
+.message-content ul,
+.message-content ol {
+  margin: 10px 0 14px;
+  padding-left: 24px;
+}
+
+.message-content li {
+  margin: 5px 0;
+}
+
+.message-content blockquote {
+  margin: 14px 0;
+  padding: 8px 14px;
+  border-left: 2px solid var(--accent);
+  color: var(--text-muted);
+  background: var(--bg);
+}
+
+.markdown-inline-code {
+  padding: 2px 5px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+.markdown-code-block {
+  margin: 14px 0;
+  padding: 14px 16px;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  font-family: monospace;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.markdown-code-block code {
+  font-family: inherit;
 }
 
 .user-message {
@@ -407,12 +466,17 @@
   line-height: 1.6;
 }
 
+.user-message .message-content p {
+  margin: 0;
+}
+
 .assistant-message {
   align-items: flex-start;
 }
 
 .assistant-message .message-content {
-  max-width: 1000px;
+  width: 100%;
+  max-width: 1080px;
   padding: 0;
 }
 
@@ -453,7 +517,7 @@
 
 .chat-composer {
   flex-shrink: 0;
-  padding: 18px 48px 20px;
+  padding: 18px 54px 20px;
   border-top: 1px solid var(--border);
   background: var(--surface);
 }
@@ -556,11 +620,32 @@
 
 
 /* =========================
+   ATTACHED FILE
+   ========================= */
+
+.attached-file {
+  margin-bottom: 8px;
+}
+
+.attached-file-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+
+/* =========================
    SOURCES
    ========================= */
 
 .sources-section {
   width: 100%;
+  max-width: 1080px;
   margin-top: 8px;
   padding-top: 20px;
   border-top: 1px solid var(--border);
@@ -704,18 +789,18 @@
 
   .chat-welcome,
   .message-list {
-    padding-left: 48px;
-    padding-right: 48px;
+    padding-left: 44px;
+    padding-right: 44px;
   }
 
   .chat-header {
-    padding-left: 38px;
-    padding-right: 38px;
+    padding-left: 36px;
+    padding-right: 36px;
   }
 
   .chat-composer {
-    padding-left: 38px;
-    padding-right: 38px;
+    padding-left: 36px;
+    padding-right: 36px;
   }
 }
 
@@ -726,18 +811,18 @@
 
   .chat-welcome,
   .message-list {
-    padding-left: 32px;
-    padding-right: 32px;
+    padding-left: 30px;
+    padding-right: 30px;
   }
 
   .chat-header {
-    padding-left: 28px;
-    padding-right: 28px;
+    padding-left: 26px;
+    padding-right: 26px;
   }
 
   .chat-composer {
-    padding-left: 28px;
-    padding-right: 28px;
+    padding-left: 26px;
+    padding-right: 26px;
   }
 
   .chat-welcome h1 {
@@ -757,7 +842,7 @@
   }
 
   .chat-welcome {
-    padding: 40px 24px;
+    padding: 40px 22px;
   }
 
   .chat-welcome h1 {
@@ -765,7 +850,7 @@
   }
 
   .message-list {
-    padding: 30px 24px;
+    padding: 30px 22px;
   }
 
   .user-message .message-content {
@@ -776,14 +861,19 @@
     font-size: 13px;
   }
 
+  .assistant-message .message-content,
+  .sources-section {
+    max-width: 100%;
+  }
+
   .chat-header {
-    padding-left: 22px;
-    padding-right: 22px;
+    padding-left: 20px;
+    padding-right: 20px;
   }
 
   .chat-composer {
-    padding-left: 22px;
-    padding-right: 22px;
+    padding-left: 20px;
+    padding-right: 20px;
   }
 
   .sources-section {

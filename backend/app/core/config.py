@@ -20,6 +20,11 @@ GEMINI_MODEL = os.getenv(
     "gemini-2.5-flash",
 )
 
+GEMINI_EMBEDDING_MODEL = os.getenv(
+    "GEMINI_EMBEDDING_MODEL",
+    "gemini-embedding-2",
+)
+
 SECRET_KEY = os.getenv("SECRET_KEY")
 
 ALGORITHM = os.getenv(
